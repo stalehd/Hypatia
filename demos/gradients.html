@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!--
+    Hypatia: Gradient, interpolation and heatmap demo
+    Copyright (C) 2014 Ståle Dahl <stalehd@gmail.com>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+-->
+<html lang="no">
+    <head>
+        <title>Hypatia: Heatmaps, gradients, interpolation</title>
+        <meta charset="utf-8">
+        <style>
+        body {
+            background-color: #333333;
+            color: #999999;
+            font-family: sans-serif;
+        }
+        #gradient-caption {
+            position: absolute;
+            top: 80px;
+            left: 50px;
+            width: 50px;
+            height: 20px;
+        }
+
+        #gradient-canvas {
+            position: absolute;
+            top: 100px;
+            left: 50px;
+            width: 50px;
+            height: 800px;
+            background-color: #444444;
+            margin: 0;
+            padding: 0;
+        }
+        #heatmap-caption {
+            position: absolute;
+            top: 80px;
+            left: 150px;
+        }
+        #heatmap-canvas {
+            position: absolute;
+            top: 100px;
+            left: 150px;
+            width: 800px;
+            height: 800px;
+            background-color: #444444;
+            margin: 0;
+            padding: 0;
+        }
+        #mini-caption {
+            position: absolute;
+            top: 80px;
+            left: 1000px;
+        }
+        #miniheatmap-canvas {
+            position: absolute;
+            top: 100px;
+            left: 1000px;
+            width: 200px;
+            height: 200px;
+            background-color: #444444;
+        }
+        </style>
+    </head>
+    <body>
+        <div id="gradient-caption">
+            Cols
+        </div>
+        <canvas id="gradient-canvas" width="50" height="800">
+        </canvas>
+
+        <div id="heatmap-caption">
+            Interpolated data
+        </div>
+        <canvas id="heatmap-canvas" width="800" height="800">
+        </canvas>
+
+        <div id="mini-caption">
+            Actual data
+        </div>
+        <canvas id="miniheatmap-canvas" width="200" height="200">
+        </canvas>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+        <script src="../hypatia.gradient.js"></script>
+        <script src="../hypatia.heatmap.js"></script>
+        <script src="../hypatia.interpolate.js"></script>
+        <script>
+
+            function drawGradient(colors) {
+                var context = document.getElementById('gradient-canvas').getContext('2d');
+                var height = 800;
+                var width = 50;
+                var delta = height/colors.length;
+
+                var y = 0;
+                // Min at bottom, max at top - more intuitive
+                for (var i = colors.length - 1; i > 0; i--) {
+                    context.fillStyle = colors[i];
+                    context.fillRect(0, y, 50, delta);
+                    y += delta;
+                }
+            }
+
+            /**
+             * Create dummy data - use sine waves to make nice patterns.
+             */
+            function createDummyData(width, height, angle) {
+                var rows = new Array();
+                for (var i = 0; i < height; i++) {
+                    var row = new Array();
+                    for (var j = 0; j < width; j++) {
+                        var val = Math.abs((Math.sin(j/width*Math.PI+angle) + Math.sin(i/height*Math.PI+angle)) * 50);
+                        val = Math.max(0, val);
+                        val = Math.min(100, val);
+                        row.push(val);
+                    }
+                    rows.push(row);
+                }
+                return rows;
+            }
+
+            var gradient = new Hypatia.Gradient(Hypatia.Gradients.REDGREENBLUE);
+            var colors = gradient.getColors(200);
+
+            var largeHeatmap = new Hypatia.Heatmap({
+                width: 800,
+                height: 800,
+                showGrid: false,
+                gradient: colors,
+                canvasElementId: 'heatmap-canvas'
+            });
+
+            var smallHeatmap = new Hypatia.Heatmap({
+                width: 200,
+                height: 200,
+                showGrid: true,
+                gradient: colors,
+                canvasElementId: 'miniheatmap-canvas'
+            });
+
+            drawGradient(colors);
+
+            var time = 0;
+            var oldts = 0;
+            var showFps = true;
+            var animation = function(ts) {
+                time += 0.01;
+                var dummyData = createDummyData(4, 4, Math.cos(time)*Math.PI);
+
+                var dataToDraw = expandAndInterpolate(dummyData, 16);
+
+                largeHeatmap.draw(dataToDraw);
+                smallHeatmap.draw(dummyData);
+                if (showFps) {
+                    var fps = Math.round(1000.0/(ts - oldts));
+                    var context = document.getElementById('heatmap-canvas').getContext('2d');
+                    context.font = '8pt sans-serif';
+                    context.fillStyle = 'black';
+                    context.fillText(fps + ' fps', 0, 10);
+                    oldts = ts;
+                }
+                window.requestAnimationFrame(animation);
+            };
+            window.requestAnimationFrame(animation);
+        </script>
+    </body>
+</html>
+<script>
+
